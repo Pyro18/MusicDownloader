@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { check } from '@tauri-apps/plugin-updater';
+import { ask } from '@tauri-apps/plugin-dialog';
 import { DownloadForm } from './components/DownloadForm';
 import { DownloadHistory } from './components/DownloadHistory';
 import { Settings as SettingsView } from './components/Settings';
@@ -21,6 +23,7 @@ function App() {
     checkSpotdl();
     loadConfig();
     loadHistory();
+    checkForUpdates();
     
     const unlisten = listen<ProgressPayload>('download-progress', (event) => {
       const { percentage, message } = event.payload;
@@ -43,6 +46,25 @@ function App() {
       setConfig(cfg);
     } catch (error) {
       console.error('Failed to load config:', error);
+    }
+  };
+
+  const checkForUpdates = async () => {
+    try {
+      const update = await check();
+      if (update?.available) {
+        const yes = await ask(
+          `È disponibile una nuova versione di Music Downloader: ${update.version}\nVuoi scaricarla e installarla ora?`, 
+          { title: 'Aggiornamento Disponibile', kind: 'info' }
+        );
+        if (yes) {
+          await update.downloadAndInstall();
+          // Restart the app after the update is installed
+          await invoke('plugin:process|restart');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check for updates:', error);
     }
   };
 

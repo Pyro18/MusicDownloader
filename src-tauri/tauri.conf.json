@@ -24,6 +24,14 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Pyro18/MusicDownloader/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkxNkY0REEzNDdFQjk0ODQKUldTRWxPdEhvMDF2a2M0RllZNGFyeFJXSWdSaGI2YUUxbzBXVDNOTW1XeUU5VHUzYmhZc3VwdTEK"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
