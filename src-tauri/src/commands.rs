@@ -143,16 +143,6 @@ pub async fn install_spotdl() -> Result<String, String> {
     if output.status.success() {
         Ok("spotdl installed successfully".to_string())
     } else {
-    // Attempt installation via pip
-    let output = Command::new("pip")
-        .arg("install")
-        .arg("spotdl")
-        .output()
-        .map_err(|e| format!("Failed to execute pip: {}", e))?;
-
-    if output.status.success() {
-        Ok("spotdl installed successfully".to_string())
-    } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
         Err(format!("Failed to install spotdl: {}", stderr))
     }
