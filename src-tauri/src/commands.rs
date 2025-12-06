@@ -96,6 +96,16 @@ fn resolve_spotdl_path() -> Option<String> {
                 }
             }
         } else {
+             println!("pip show spotdl failed: {}", String::from_utf8_lossy(&output.stderr));
+        }
+    } else {
+        println!("Failed to run pip show spotdl");
+    }
+
+    println!("Could not resolve spotdl path");
+    None
+}
+
 #[tauri::command]
 pub async fn check_spotdl_installed() -> Result<bool, String> {
     if let Some(_) = resolve_spotdl_path() {
