@@ -238,22 +238,22 @@ pub async fn download_track(
 
     if config.use_sponsor_block {
         cmd.arg("--sponsor-block");
-    // Configure concurrency
-    cmd.arg("--threads").arg(config.threads.to_string());
-
-    #[cfg(target_os = "windows")]
-    cmd.creation_flags(CREATE_NO_WINDOW);
-
-    let mut child = cmd
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped()) // Capture progress from stderr
-        .spawn()
-        .map_err(|e| format!("Failed to start spotdl: {}", e))?;
+    }
+    if config.generate_m3u {
+        cmd.arg("--m3u");
+    }
+    if config.generate_lrc {
+        cmd.arg("--generate-lrc");
+    }
+    if config.force_update_metadata {
         cmd.arg("--force-update-metadata");
     }
     
     // Configure concurrency
     cmd.arg("--threads").arg(config.threads.to_string());
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
 
     let mut child = cmd
         .stdout(Stdio::piped())
