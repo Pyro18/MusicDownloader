@@ -6,6 +6,12 @@ use std::sync::Mutex;
 use serde::Serialize;
 use crate::storage::{Storage, AppConfig, HistoryItem};
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 #[derive(Clone, Serialize)]
 struct ProgressPayload {
     percentage: u32,
@@ -16,7 +22,12 @@ fn resolve_spotdl_path() -> Option<String> {
     println!("Resolving spotdl path...");
 
     // Check if spotdl is in PATH
-    if let Ok(output) = Command::new("spotdl").arg("--version").output() {
+    let mut cmd = Command::new("spotdl");
+    cmd.arg("--version");
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    if let Ok(output) = cmd.output() {
         if output.status.success() {
             println!("Found spotdl in PATH");
             return Some("spotdl".to_string());
@@ -25,7 +36,12 @@ fn resolve_spotdl_path() -> Option<String> {
 
     // Locate via pip
     println!("Checking pip show spotdl...");
-    if let Ok(output) = Command::new("pip").arg("show").arg("spotdl").output() {
+    let mut cmd = Command::new("pip");
+    cmd.arg("show").arg("spotdl");
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    if let Ok(output) = cmd.output() {
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
@@ -80,24 +96,18 @@ fn resolve_spotdl_path() -> Option<String> {
                 }
             }
         } else {
-             println!("pip show spotdl failed: {}", String::from_utf8_lossy(&output.stderr));
-        }
-    } else {
-        println!("Failed to run pip show spotdl");
-    }
-
-    println!("Could not resolve spotdl path");
-    None
-}
-
 #[tauri::command]
 pub async fn check_spotdl_installed() -> Result<bool, String> {
     if let Some(_) = resolve_spotdl_path() {
         Ok(true)
     } else {
         // Fallback check
-        let output = Command::new("spotdl")
-            .arg("--version")
+        let mut cmd = Command::new("spotdl");
+        cmd.arg("--version");
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        let output = cmd
             .output()
             .map_err(|e| e.to_string())?;
         Ok(output.status.success())
@@ -107,8 +117,12 @@ pub async fn check_spotdl_installed() -> Result<bool, String> {
 #[tauri::command]
 pub async fn install_spotdl() -> Result<String, String> {
     // Verify pip availability
-    let pip_check = Command::new("pip")
-        .arg("--version")
+    let mut cmd = Command::new("pip");
+    cmd.arg("--version");
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let pip_check = cmd
         .output()
         .map_err(|_| "Python/pip is not installed or not in PATH. Please install Python first.".to_string())?;
 
@@ -116,6 +130,19 @@ pub async fn install_spotdl() -> Result<String, String> {
         return Err("Python/pip is not installed or not in PATH. Please install Python first.".to_string());
     }
 
+    // Attempt installation via pip
+    let mut cmd = Command::new("pip");
+    cmd.arg("install").arg("spotdl");
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to execute pip: {}", e))?;
+
+    if output.status.success() {
+        Ok("spotdl installed successfully".to_string())
+    } else {
     // Attempt installation via pip
     let output = Command::new("pip")
         .arg("install")
@@ -211,14 +238,17 @@ pub async fn download_track(
 
     if config.use_sponsor_block {
         cmd.arg("--sponsor-block");
-    }
-    if config.generate_m3u {
-        cmd.arg("--m3u");
-    }
-    if config.generate_lrc {
-        cmd.arg("--generate-lrc");
-    }
-    if config.force_update_metadata {
+    // Configure concurrency
+    cmd.arg("--threads").arg(config.threads.to_string());
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let mut child = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped()) // Capture progress from stderr
+        .spawn()
+        .map_err(|e| format!("Failed to start spotdl: {}", e))?;
         cmd.arg("--force-update-metadata");
     }
     
